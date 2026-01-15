@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vision Lab Pro | SVG Precision</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --text-color: #1e293b;
+            --card-bg: #ffffff;
+            --accent: #2563eb;
+            --border: #e2e8f0;
+            --left-eye: #2563eb;
+            --right-eye: #dc2626;
+            --both-eyes: #10b981;
+        }
+
+        body.dark-theme {
+            --bg-color: #0f172a;
+            --text-color: #f1f5f9;
+            --card-bg: #1e293b;
+            --accent: #3b82f6;
+            --border: #334155;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        #app { width: 100%; max-width: 600px; padding: 20px; display: flex; flex-direction: column; }
+
+        /* Calibration Modal - Retina Optimized */
+        .modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: var(--card-bg); padding: 40px; border-radius: 24px; width: 95%; max-width: 900px; text-align: center; }
+        
+        #cal-container { width: 100%; overflow: hidden; padding: 50px 0; display: flex; justify-content: center; }
+        #ruler-wrapper { position: relative; width: 600px; transition: width 0.05s linear; }
+        
+        #ruler-svg { display: block; margin-bottom: 5px; }
+
+        #cal-box { 
+            background: var(--accent); height: 180px; width: 100%; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        /* Test Interface */
+        .tab-bar { display: flex; background: var(--border); padding: 4px; border-radius: 12px; gap: 4px; margin-bottom: 12px; }
+        .tab-btn { flex: 1; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; background: transparent; color: var(--text-color); }
+        .tab-btn.active { background: var(--card-bg); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .eye-btn.active[data-eye="Left"] { background: var(--left-eye); color: white; }
+        .eye-btn.active[data-eye="Right"] { background: var(--right-eye); color: white; }
+        .eye-btn.active[data-eye="Both"] { background: var(--both-eyes); color: white; }
+
+        #test-area { 
+            height: 350px; background: var(--card-bg); display: flex; justify-content: center; align-items: center; 
+            border-radius: 20px; border: 1px solid var(--border); margin-bottom: 20px; overflow: hidden;
+        }
+        #optotype { font-weight: bold; font-family: monospace; line-height: 1; }
+        
+        .v-line { width: 4px; height: 70px; background: var(--text-color); }
+        #concentric-rings { width: 250px; height: 250px; border-radius: 50%; }
+
+        .controls-card { background: var(--card-bg); padding: 25px; border-radius: 20px; border: 1px solid var(--border); }
+        .input-field { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-color); color: var(--text-color); margin-bottom: 12px; font-size: 1rem; }
+        
+        .action-row { display: flex; justify-content: space-between; align-items: flex-end; }
+        #saveBtn { background: var(--accent); color: white; border: none; padding: 14px 28px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .goal-btn { background: none; border: 1.5px solid var(--both-eyes); color: var(--both-eyes); padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; font-weight: bold; margin-top: 8px; }
+
+        /* History */
+        #logList { list-style: none; padding: 0; margin-top: 25px; }
+        .log-item { background: var(--card-bg); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 10px; border-left: 6px solid transparent; }
+        .eye-badge { padding: 3px 8px; border-radius: 5px; font-size: 0.7rem; color: white; font-weight: bold; margin-right: 8px; }
+        
+        .hidden { display: none !important; }
+        footer { display: flex; justify-content: center; gap: 15px; margin: 30px 0; }
+        .footer-link { background: none; border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; cursor: pointer; color: var(--text-color); font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+    <div id="calModal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-top:0">📏 High-Precision Calibration</h2>
+            <p>1. Align a credit card's left edge with the <b>0</b> mark.<br>
+            2. Adjust slider until <b>8.56cm</b> matches the card's right edge.</p>
+            
+            <div id="cal-container">
+                <div id="ruler-wrapper">
+                    <svg id="ruler-svg" width="100%" height="50"></svg>
+                    <div id="cal-box">PLACE CREDIT CARD HERE</div>
+                </div>
+            </div>
+
+            <input type="range" id="calSlider" min="300" max="1400" value="700" style="width:80%">
+            <div style="margin-top:25px">
+                <button id="setCalBtn" style="background:var(--accent); color:white; padding:16px 50px; border-radius:12px; border:none; font-weight:bold; font-size:1.1rem; cursor:pointer;">Save & Start</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app">
+        <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h1 style="font-size:1.5rem; margin:0">Vision Lab Pro</h1>
+            <button id="themeToggle" class="footer-link" style="padding:5px 10px">🌓 Theme</button>
+        </header>
+
+        <section>
+            <div class="tab-bar">
+                <button class="tab-btn mode-btn active" data-mode="Letter">Letter</button>
+                <button class="tab-btn mode-btn" data-mode="Lines">Lines</button>
+                <button class="tab-btn mode-btn" data-mode="Circles">Circles</button>
+            </div>
+            <div class="tab-bar">
+                <button class="tab-btn eye-btn active" data-eye="Left">Left Eye</button>
+                <button class="tab-btn eye-btn" data-eye="Right">Right Eye</button>
+                <button class="tab-btn eye-btn" data-eye="Both">Both Eyes</button>
+            </div>
+        </section>
+
+        <main id="test-area">
+            <div id="optotype">E</div>
+            <div id="line-test" class="hidden">
+                <div class="v-line"></div>
+                <div id="moving-line" class="v-line" style="margin-top:10px"></div>
+            </div>
+            <div id="concentric-rings" class="hidden"></div>
+        </main>
+
+        <section class="controls-card">
+            <select id="distSelect" class="input-field">
+                <option value="40cm">40 cm (Near)</option>
+                <option value="1m">1 Meter</option>
+                <option value="3m">3 Meters</option>
+                <option value="6m">6 Meters (Far)</option>
+            </select>
+            <input type="text" id="noteInput" class="input-field" placeholder="Add a note (optional)">
+            
+            <input type="range" id="sizeSlider" min="1" max="400" value="60" style="width:100%; margin:20px 0;">
+            
+            <div class="action-row">
+                <div>
+                    <span style="font-size: 0.9rem;">Current Value: <strong id="sizeDisplay">60</strong> px</span>
+                    <button id="setGoalBtn" class="goal-btn">Set to 20/20 Goal (1.0')</button>
+                </div>
+                <button id="saveBtn">Save Result</button>
+            </div>
+        </section>
+
+        <ul id="logList"></ul>
+
+        <footer>
+            <button id="recalBtn" class="footer-link">📏 Recalibrate</button>
+            <button id="exportBtn" class="footer-link">📥 Export CSV</button>
+            <button id="clearBtn" class="footer-link" style="color:#ef4444">🗑 Clear All</button>
+        </footer>
+    </div>
+
+    <script>
+        let ppxMm = 1;
+        let currentEye = "Left";
+        let currentMode = "Letter";
+        const letters = "EHKNRTUZV";
+
+        // --- SVG Ruler Logic ---
+        const calSlider = document.getElementById('calSlider');
+        const rulerWrapper = document.getElementById('ruler-wrapper');
+        const svg = document.getElementById('ruler-svg');
+
+        function drawRuler() {
+            const width = parseFloat(calSlider.value);
+            rulerWrapper.style.width = width + 'px';
+            svg.innerHTML = '';
+            
+            const totalMm = 85.6;
+            const pixelsPerMm = width / totalMm;
+
+            // Baseline
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", "0"); line.setAttribute("y1", "45");
+            line.setAttribute("x2", width); line.setAttribute("y2", "45");
+            line.setAttribute("stroke", "currentColor"); line.setAttribute("stroke-width", "2");
+            svg.appendChild(line);
+
+            // Ticks
+            for (let i = 0; i <= totalMm; i++) {
+                const x = i * pixelsPerMm;
+                const isCm = i % 10 === 0;
+                const isHalf = i % 5 === 0;
+                
+                const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                tick.setAttribute("x1", x); tick.setAttribute("x2", x);
+                tick.setAttribute("y1", isCm ? "15" : (isHalf ? "25" : "35"));
+                tick.setAttribute("y2", "45");
+                tick.setAttribute("stroke", "currentColor");
+                tick.setAttribute("stroke-width", isCm ? "2" : "1");
+                svg.appendChild(tick);
+
+                if (isCm) {
+                    const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    txt.setAttribute("x", i === 0 ? x : (i > 80 ? x - 35 : x - 5));
+                    txt.setAttribute("y", "12");
+                    txt.setAttribute("fill", "currentColor");
+                    txt.setAttribute("font-size", "10px");
+                    txt.setAttribute("font-weight", "bold");
+                    txt.textContent = i === 0 ? "0" : (i > 80 ? "8.56cm" : (i/10).toString());
+                    svg.appendChild(txt);
+                }
+            }
+        }
+
+        calSlider.oninput = drawRuler;
+        drawRuler(); // Initial draw
+
+        document.getElementById('setCalBtn').onclick = () => {
+            const cssPixels = parseFloat(calSlider.value);
+            const physicalPixels = cssPixels * window.devicePixelRatio;
+            ppxMm = physicalPixels / 85.6; 
+            document.getElementById('calModal').classList.add('hidden');
+        };
+
+        document.getElementById('recalBtn').onclick = () => {
+            document.getElementById('calModal').classList.remove('hidden');
+            drawRuler();
+        };
+
+        // --- Interaction Logic ---
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentMode = btn.dataset.mode;
+                updateView();
+            };
+        });
+
+        document.querySelectorAll('.eye-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.eye-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentEye = btn.dataset.eye;
+                if(currentMode === "Letter") randomize();
+            };
+        });
+
+        function updateView() {
+            document.getElementById('optotype').classList.toggle('hidden', currentMode !== 'Letter');
+            document.getElementById('line-test').classList.toggle('hidden', currentMode !== 'Lines');
+            document.getElementById('concentric-rings').classList.toggle('hidden', currentMode !== 'Circles');
+            const slider = document.getElementById('sizeSlider');
+            if (currentMode === "Lines") { slider.max = 80; slider.value = 5; } 
+            else { slider.max = 500; slider.value = 60; }
+            refresh();
+        }
+
+        const sizeSlider = document.getElementById('sizeSlider');
+        const sizeDisplay = document.getElementById('sizeDisplay');
+
+        function refresh() {
+            const val = parseFloat(sizeSlider.value);
+            sizeDisplay.innerText = val;
+            const target = document.getElementById('optotype');
+            if (currentMode === "Letter") {
+                target.style.fontSize = val + 'px';
+            } else if (currentMode === "Lines") {
+                document.getElementById('moving-line').style.transform = `translateX(${val}px)`;
+            } else if (currentMode === "Circles") {
+                document.getElementById('concentric-rings').style.background = `repeating-radial-gradient(circle, var(--text-color), var(--text-color) 2px, transparent 2.5px, transparent ${val}px)`;
+            }
+        }
+        sizeSlider.oninput = refresh;
+
+        function randomize() { document.getElementById('optotype').innerText = letters[Math.floor(Math.random() * letters.length)]; }
+
+        // --- Snellen Math ---
+        document.getElementById('setGoalBtn').onclick = () => {
+            const distStr = document.getElementById('distSelect').value;
+            const distMm = distStr.includes('cm') ? parseInt(distStr) * 10 : parseInt(distStr) * 1000;
+            const targetArcLetter = 5.0; // 5 arcmin height for 1 arcmin detail
+            const targetMm = 2 * distMm * Math.tan((targetArcLetter / 120) * (Math.PI / 180));
+            sizeSlider.value = (targetMm * ppxMm / window.devicePixelRatio).toFixed(2);
+            refresh();
+        };
+
+        function getArcDetail(val, distStr) {
+            const distMm = distStr.includes('cm') ? parseInt(distStr) * 10 : parseInt(distStr) * 1000;
+            const physicalSizePx = val * window.devicePixelRatio;
+            const totalHeightMm = physicalSizePx / ppxMm;
+            const detailSizeMm = totalHeightMm / 5;
+            const radians = 2 * Math.atan(detailSizeMm / (2 * distMm));
+            return (radians * (180 / Math.PI) * 60).toFixed(2);
+        }
+
+        document.getElementById('saveBtn').onclick = () => {
+            const arc = getArcDetail(sizeSlider.value, document.getElementById('distSelect').value);
+            const entry = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString(),
+                time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+                eye: currentEye, mode: currentMode, arc: arc, px: sizeSlider.value,
+                dist: document.getElementById('distSelect').value,
+                note: document.getElementById('noteInput').value
+            };
+            const data = JSON.parse(localStorage.getItem('visionData') || '[]');
+            data.push(entry);
+            localStorage.setItem('visionData', JSON.stringify(data));
+            document.getElementById('noteInput').value = "";
+            renderHistory();
+        };
+
+        function renderHistory() {
+            const data = JSON.parse(localStorage.getItem('visionData') || '[]');
+            const list = document.getElementById('logList');
+            list.innerHTML = data.slice(-12).reverse().map(item => {
+                const color = item.arc <= 1.05 ? '#10b981' : item.arc <= 2.0 ? '#3b82f6' : '#f59e0b';
+                const eyeColor = item.eye === 'Left' ? 'var(--left-eye)' : item.eye === 'Right' ? 'var(--right-eye)' : 'var(--both-eyes)';
+                return `<li class="log-item" style="border-left-color: ${color}">
+                    <div style="display:flex; justify-content:space-between; align-items:center">
+                        <span><span class="eye-badge" style="background:${eyeColor}">${item.eye}</span> <strong>${item.arc}'</strong> detail</span>
+                        <div>
+                            <button onclick="viewRec(${item.id})" style="background:#64748b; border:none; color:white; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.7rem">View</button>
+                            <button onclick="delRec(${item.id})" style="background:#ef4444; border:none; color:white; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.7rem">×</button>
+                        </div>
+                    </div>
+                    <div style="font-size:0.75rem; color:#64748b; margin-top:6px">${item.mode} • ${item.dist} • ${item.date} ${item.note ? `• ${item.note}` : ''}</div>
+                </li>`;
+            }).join('');
+        }
+
+        window.viewRec = (id) => {
+            const item = JSON.parse(localStorage.getItem('visionData')).find(i => i.id === id);
+            currentMode = item.mode; currentEye = item.eye;
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === item.mode));
+            document.querySelectorAll('.eye-btn').forEach(b => b.classList.toggle('active', b.dataset.eye === item.eye));
+            sizeSlider.value = item.px;
+            document.getElementById('distSelect').value = item.dist;
+            updateView();
+        };
+
+        window.delRec = (id) => { if(confirm("Delete record?")) {
+            let data = JSON.parse(localStorage.getItem('visionData')).filter(i => i.id !== id);
+            localStorage.setItem('visionData', JSON.stringify(data));
+            renderHistory();
+        }};
+
+        document.getElementById('exportBtn').onclick = () => {
+            const data = JSON.parse(localStorage.getItem('visionData') || '[]');
+            const csv = "Date,Time,Eye,Mode,Distance,ArcminutesDetail,Note\n" + data.map(i => `${i.date},${i.time},${i.eye},${i.mode},${i.dist},${i.arc},"${i.note}"`).join("\n");
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+            a.download = 'vision_log.csv'; a.click();
+        };
+
+        document.getElementById('clearBtn').onclick = () => { if(confirm("Clear all?")) { localStorage.clear(); renderHistory(); }};
+        document.getElementById('themeToggle').onclick = () => document.body.classList.toggle('dark-theme');
+        
+        renderHistory();
+    </script>
+</body>
+</html>
